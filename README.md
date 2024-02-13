@@ -10,6 +10,16 @@ Follow [this](https://github.com/ggerganov/whisper.cpp/tree/master/models#1-use-
 instruction to download the `ggml-*.bin` model file and [this](https://github.com/ggerganov/whisper.cpp/blob/master/README.md#core-ml-support) 
 instruction to convert `bin` files to `mlmodelc` (coreml) file
 
+## What is different
+
+- Always run on real time mode
+
+- Limited `n_threads` to 4 when transcribing, less system resource usage
+
+- Abstract the frontend and backend
+
+- Auto detect the language to transcribe (sometimes produce the wrong language)
+
 ## Usage
 
 ```bash
@@ -28,3 +38,16 @@ cd ../../ && open Roamly.xcodeproj/
 ```
 
 after open the project in Xcode, drag the `bin` files from `models` folder to Xcode workspace (on the left where files are listed)
+
+## Run on Xcode emulator
+
+To run project on Xcode emulator, add following code snippet after `struct whisper_context_params cparams = whisper_context_default_params();` in `- (void)viewDidLoad` function in `ViewController.m`
+
+```objective-c
+#if TARGET_OS_SIMULATOR
+        cparams.use_gpu = false;
+        NSLog(@"Running on simulator, using CPU");
+#endif
+```
+
+refer [original](https://github.com/ggerganov/whisper.cpp/blob/master/examples/whisper.objc/whisper.objc/ViewController.m) for more detail
