@@ -5,10 +5,10 @@ The inference runs locally, on-device. Forked from [whisper.cpp](https://github.
 
 ## Note
 
-The `ggml-tiny` and `ggml-base` model has already been converted to Core ML model in this project.
-Follow [this](https://github.com/ggerganov/whisper.cpp/tree/master/models#1-use-download-ggml-modelsh-to-download-pre-converted-models) 
+The `ggml-tiny` and `ggml-base` model has already been converted to Core ML model and packed in this project.
+If you need more model, follow [this](https://github.com/ggerganov/whisper.cpp/tree/master/models#1-use-download-ggml-modelsh-to-download-pre-converted-models) 
 instruction to download the `ggml-*.bin` model file and [this](https://github.com/ggerganov/whisper.cpp/blob/master/README.md#core-ml-support) 
-instruction to convert `bin` files to `mlmodelc` (coreml) file
+instruction to convert `ggml-*.bin` files to `*.mlmodelc` (coreml) file
 
 ## What is different
 
