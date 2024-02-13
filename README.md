@@ -3,6 +3,14 @@
 An Obj-C application for automatic offline speech recognition.
 The inference runs locally, on-device. Forked from [whisper.cpp](https://github.com/ggerganov/whisper.cpp) project
 
+## System setting
+
+- Xcode 15.2
+
+- iOS 17.3.1
+
+- Developer mode on
+
 ## Note
 
 The `ggml-tiny` and `ggml-base` model has already been converted to Core ML model and packed in this project.
