@@ -5,9 +5,9 @@ The inference runs locally, on-device. Forked from [whisper.cpp](https://github.
 
 ## System setting
 
-- Xcode 15.2
+- Xcode 15.2 
 
-- iOS 17.3.1
+- iOS 17.3.1 (Xcode 15 emulator currently have some bug to run CoreML models, so only run with real iPhone for now)
 
 - Developer mode on
 
