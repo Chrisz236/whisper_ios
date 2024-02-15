@@ -17,7 +17,7 @@
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" fixedFrame="YES" keyboardDismissMode="interactive" editable="NO" text="self text goes here" textAlignment="natural" translatesAutoresizingMaskIntoConstraints="NO" id="mvX-e1-2bo">
-                                <rect key="frame" x="46" y="466" width="300" height="200"/>
+                                <rect key="frame" x="46" y="92" width="300" height="493"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                                 <color key="textColor" systemColor="labelColor"/>
@@ -26,7 +26,7 @@
                                 <dataDetectorType key="dataDetectorTypes" phoneNumber="YES" link="YES" address="YES" calendarEvent="YES" shipmentTrackingNumber="YES" flightNumber="YES"/>
                             </textView>
                             <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="APq-tX-WBQ">
-                                <rect key="frame" x="114" y="707" width="164" height="57"/>
+                                <rect key="frame" x="114" y="632" width="164" height="57"/>
                                 <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                 <state key="normal" title="Button"/>
                                 <buttonConfiguration key="configuration" style="tinted" title="Start"/>
@@ -34,31 +34,11 @@
                                     <action selector="selfStartButton:" destination="BYZ-38-t0r" eventType="touchUpInside" id="yC4-hL-sc3"/>
                                 </connections>
                             </button>
-                            <button opaque="NO" contentMode="scaleToFill" fixedFrame="YES" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="GVG-It-8IQ">
-                                <rect key="frame" x="114" y="102" width="164" height="57"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
-                                <state key="normal" title="Button"/>
-                                <buttonConfiguration key="configuration" style="tinted" title="Start"/>
-                                <connections>
-                                    <action selector="foreignStartButton:" destination="BYZ-38-t0r" eventType="touchUpInside" id="KOA-pT-eQV"/>
-                                </connections>
-                            </button>
-                            <textView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" fixedFrame="YES" keyboardDismissMode="interactive" editable="NO" text="foreign text goes here" textAlignment="natural" translatesAutoresizingMaskIntoConstraints="NO" id="e63-XW-f0L">
-                                <rect key="frame" x="46" y="205" width="300" height="200"/>
-                                <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
-                                <color key="backgroundColor" systemColor="systemBackgroundColor"/>
-                                <color key="textColor" systemColor="labelColor"/>
-                                <fontDescription key="fontDescription" type="system" pointSize="19"/>
-                                <textInputTraits key="textInputTraits" autocapitalizationType="sentences"/>
-                                <dataDetectorType key="dataDetectorTypes" phoneNumber="YES" link="YES" address="YES" calendarEvent="YES" shipmentTrackingNumber="YES" flightNumber="YES"/>
-                            </textView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                     </view>
                     <connections>
-                        <outlet property="foreignStartButton" destination="GVG-It-8IQ" id="pcm-7P-bcc"/>
-                        <outlet property="foreignTextView" destination="e63-XW-f0L" id="GAt-d2-ogj"/>
                         <outlet property="selfStartButton" destination="APq-tX-WBQ" id="0GW-2a-QYJ"/>
                         <outlet property="selfTextView" destination="mvX-e1-2bo" id="riS-bC-JK6"/>
                     </connections>

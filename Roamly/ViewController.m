@@ -30,7 +30,8 @@
 
 - (NSString *)getModelName {
 //    return @"ggml-base";
-    return @"ggml-tiny";
+//    return @"ggml-tiny";
+    return @"ggml-tiny.en";
 }
 
 - (void)viewDidLoad {
@@ -65,31 +66,7 @@
     self.selfTextView.layer.borderWidth = 1.0;
     self.selfTextView.layer.cornerRadius = 5.0;
 
-    [_foreignStartButton setTitle:@"Start Capture" forState:UIControlStateNormal];
-    [_foreignStartButton setBackgroundColor:[UIColor lightGrayColor]];
-    [_foreignStartButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-    self.foreignTextView.layer.borderColor = [UIColor grayColor].CGColor;
-    self.foreignTextView.layer.borderWidth = 1.0;
-    self.foreignTextView.layer.cornerRadius = 5.0;
-
-    self.foreignTextView.transform = CGAffineTransformMakeRotation(M_PI);
-    self.foreignStartButton.transform = CGAffineTransformMakeRotation(M_PI);
-    
-    self.foreignTextView.text = @"Press \"Start Capture\" to start";
     self.selfTextView.text = @"Press \"Start Capture\" to start";
-}
-
-- (IBAction)foreignStartButton:(id)sender {
-    UIButton *button = (UIButton *)sender;
-    self.isSelfTranscribing = NO;
-    if (stateInp.isCapturing) {
-        NSLog(@"Foreign stop capture");
-        [self stopCapturing];
-    } else {
-        NSLog(@"Foreign start capture");
-        [self startAudioCapturing];
-    }
-    [self updateButton:button forCapturingState:stateInp.isCapturing];
 }
 
 - (IBAction)selfStartButton:(id)sender {
@@ -189,7 +166,7 @@
         params.print_timestamps = true;
         params.print_special    = false;
         params.translate        = false;
-        params.language         = "auto";
+        params.language         = "en";
         params.n_threads        = max_threads;
         params.offset_ms        = 0;
         params.no_context       = true;
@@ -235,8 +212,6 @@
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (self.isSelfTranscribing) {
                     self->_selfTextView.text = result;
-                } else {
-                    self->_foreignTextView.text = result;
                 }
                 self->stateInp.isTranscribing = false;
             });
@@ -261,12 +236,14 @@ void AudioInputCallback(void * inUserData,
     const int n = inBuffer->mAudioDataByteSize / 2;
 
     NSLog(@"Captured %d new samples", n);
-
+    
+    // case meet the maximum second
     if (stateInp->n_samples + n > MAX_AUDIO_SEC*SAMPLE_RATE) {
         NSLog(@"Too much audio data, ignoring");
 
         dispatch_async(dispatch_get_main_queue(), ^{
             ViewController * vc = (__bridge ViewController *)(stateInp->vc);
+            // stop capture
             [vc stopCapturing];
         });
 

@@ -51,13 +51,10 @@ void AudioInputCallback(void * inUserData,
     StateInp stateInp;
 }
 
-@property (weak, nonatomic) IBOutlet UITextView *foreignTextView;
 @property (weak, nonatomic) IBOutlet UITextView *selfTextView;
 - (IBAction)selfStartButton:(id)sender;
-- (IBAction)foreignStartButton:(id)sender;
 
 @property (weak, nonatomic) IBOutlet UIButton *selfStartButton;
-@property (weak, nonatomic) IBOutlet UIButton *foreignStartButton;
 
 // To track which textview to update
 @property (nonatomic, assign) BOOL isSelfTranscribing;
