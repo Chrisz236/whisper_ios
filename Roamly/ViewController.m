@@ -52,11 +52,10 @@
     
     [self setupAudioFormat:&stateInp.dataFormat];
         
-//    // total samples in audioBufferI16/audioBufferF32
+//    // total samples in audioBufferF32
     stateInp.n_samples = 0;
 //    
-//    // here we allocate the memory for pcm16 and pcmf32, to be used to transcribe
-    stateInp.audioBufferI16 = malloc(MAX_AUDIO_SEC*SAMPLE_RATE*sizeof(int16_t));
+//    // here we allocate the memory for pcmf32, to be used to transcribe
     stateInp.audioBufferF32 = malloc(MAX_AUDIO_SEC*SAMPLE_RATE*sizeof(float));
     
     stateInp.isTranscribing = false;
@@ -168,17 +167,11 @@
 
     // dispatch the model to a background thread
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        // process captured audio
-        // convert I16 to F32
-        for (int i = 0; i < self->stateInp.n_samples; i++) {
-            self->stateInp.audioBufferF32[i] = (float)self->stateInp.audioBufferI16[i] / 32768.0f;
-        }
-
         // run the model
         struct whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
 
         // get maximum number of threads on this device (max 8)
-//        const int max_threads = MIN(8, (int)[[NSProcessInfo processInfo] processorCount]);
+        // const int max_threads = MIN(8, (int)[[NSProcessInfo processInfo] processorCount]);
         const int max_threads = 4;
         
         params.print_realtime   = true;
@@ -270,9 +263,9 @@ void AudioInputCallback(void * inUserData,
         return;
     }
 
-    // deep copy raw audio from AudioQueueBuffer to audioBufferI16
+    // deep copy raw audio from AudioQueueBuffer to audioBufferF32 (also convert)
     for (int i = 0; i < n; i++) {
-        stateInp->audioBufferI16[stateInp->n_samples + i] = ((short*)inBuffer->mAudioData)[i];
+        stateInp->audioBufferF32[stateInp->n_samples + i] = (float)((short*)inBuffer->mAudioData)[i] / 32768.0f;
     }
     
     // update how many samples in audioBufferI16 (to be used to call whisper_full)
