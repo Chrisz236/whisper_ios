@@ -51,7 +51,11 @@
     }
     
     [self setupAudioFormat:&stateInp.dataFormat];
+        
+//    // total samples in audioBufferI16/audioBufferF32
     stateInp.n_samples = 0;
+//    
+//    // here we allocate the memory for pcm16 and pcmf32, to be used to transcribe
     stateInp.audioBufferI16 = malloc(MAX_AUDIO_SEC*SAMPLE_RATE*sizeof(int16_t));
     stateInp.audioBufferF32 = malloc(MAX_AUDIO_SEC*SAMPLE_RATE*sizeof(float));
     
@@ -136,6 +140,22 @@
     AudioQueueDispose(stateInp.queue, true);
 }
 
+- (NSString *)getTextFromCxt:(struct whisper_context *) ctx{
+    NSString *result = @"";
+    
+    // get know how many segments model splits the given audio
+    int n_segments = whisper_full_n_segments(self->stateInp.ctx);
+    
+    // concate text transcribed from each segment
+    for (int i = 0; i < n_segments; i++) {
+        const char * text_cur = whisper_full_get_segment_text(self->stateInp.ctx, i);
+        // append the text to the result
+        result = [result stringByAppendingString:[NSString stringWithUTF8String:text_cur]];
+    }
+    
+    return result;
+}
+
 // Backend thread, keep dequeue audio queue and transcribe
 - (IBAction)onTranscribe:(id)sender {
     if (stateInp.isTranscribing) {
@@ -177,29 +197,24 @@
 
         whisper_reset_timings(self->stateInp.ctx);
 
+        // param: ctx:            all whisper internal state weights
+        //        params:         hyper parameters
+        //        audioBufferF32: converted raw audio data
+        //        n_samples:      number of samples in audioBufferF32
         if (whisper_full(self->stateInp.ctx, params, self->stateInp.audioBufferF32, self->stateInp.n_samples) != 0) {
             NSLog(@"Failed to run the model");
             self->_selfTextView.text = @"Failed to run the model";
 
             return;
         }
-
+        
         whisper_print_timings(self->stateInp.ctx);
 
         CFTimeInterval endTime = CACurrentMediaTime();
 
         NSLog(@"\nProcessing time: %5.3f, on %d threads", endTime - startTime, params.n_threads);
-
-        // result text
-        NSString *result = @"";
-
-        int n_segments = whisper_full_n_segments(self->stateInp.ctx);
-        for (int i = 0; i < n_segments; i++) {
-            const char * text_cur = whisper_full_get_segment_text(self->stateInp.ctx, i);
-
-            // append the text to the result
-            result = [result stringByAppendingString:[NSString stringWithUTF8String:text_cur]];
-        }
+        
+        NSString * result = [self getTextFromCxt:self->stateInp.ctx];
 
         const float tRecording = (float)self->stateInp.n_samples / (float)self->stateInp.dataFormat.mSampleRate;
 
@@ -211,6 +226,7 @@
         dispatch_async(dispatch_get_main_queue(), ^{
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (self.isSelfTranscribing) {
+                    // update the textview with new result
                     self->_selfTextView.text = result;
                 }
                 self->stateInp.isTranscribing = false;
@@ -219,6 +235,9 @@
     });
 }
 
+// function is called when buffer in AudioQueueBufferRef is FULL
+// then this function will deep copy the content in that buffer to audioBufferI16
+// Microphone -> AudioQueueBuffer --FULL--> offload to audioBufferI16 --onTranscribe--> audioBufferF32 --> ctx --> text
 void AudioInputCallback(void * inUserData,
                         AudioQueueRef inAQ,
                         AudioQueueBufferRef inBuffer,
@@ -232,7 +251,8 @@ void AudioInputCallback(void * inUserData,
         NSLog(@"Not capturing, ignoring audio");
         return;
     }
-
+    
+    // how many samples AudioBuffer captured
     const int n = inBuffer->mAudioDataByteSize / 2;
 
     NSLog(@"Captured %d new samples", n);
@@ -250,13 +270,15 @@ void AudioInputCallback(void * inUserData,
         return;
     }
 
+    // deep copy raw audio from AudioQueueBuffer to audioBufferI16
     for (int i = 0; i < n; i++) {
         stateInp->audioBufferI16[stateInp->n_samples + i] = ((short*)inBuffer->mAudioData)[i];
     }
-
+    
+    // update how many samples in audioBufferI16 (to be used to call whisper_full)
     stateInp->n_samples += n;
 
-    // put the buffer back in the queue
+    // put the buffer back in the queue, keep refill
     AudioQueueEnqueueBuffer(stateInp->queue, inBuffer, 0, NULL);
 
     if (stateInp->isRealtime) {

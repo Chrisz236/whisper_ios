@@ -27,11 +27,17 @@ typedef struct
     AudioQueueRef queue;
     AudioStreamBasicDescription dataFormat;
     AudioQueueBufferRef buffers[NUM_BUFFERS];
-
+    
+    // n_samples = audioBufferF32.size()
     int n_samples;
+    // audioBufferI16 = pcm16
     int16_t * audioBufferI16;
+    // audioBufferF32 = pcm32 (model uses)
+    // model will transcribe this portion of audio
     float   * audioBufferF32;
+    float   * toTranscribe;
 
+    // ctx includes model current status
     struct whisper_context * ctx;
 
     void * vc;
