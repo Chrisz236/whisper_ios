@@ -31,7 +31,6 @@ typedef struct
     AudioQueueBufferRef buffers[NUM_BUFFERS];
     
     int n_samples;
-    float * audioBufferF32;
     RingBuffer * audioRingBuffer;
     
     // ctx includes model current status

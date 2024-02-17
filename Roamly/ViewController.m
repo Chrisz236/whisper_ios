@@ -55,11 +55,6 @@
         
     // number of samples to transcribe
     stateInp.n_samples = TRANSCRIBE_STEP_MS*SAMPLE_RATE/1000; // 1000ms * 16000sample/s
-     
-    // here we allocate the memory for pcmf32, to be used to transcribe
-    stateInp.audioBufferF32 = malloc(stateInp.n_samples*sizeof(float));
-//    stateInp.audioRingBuffer = [[RingBuffer alloc] initWithCapacity:RING_BUFFER_LEN_SEC*SAMPLE_RATE];
-    
     stateInp.result = [NSMutableString stringWithString:@""];
     
     stateInp.isTranscribing = false;
@@ -248,7 +243,7 @@
 // Old path:
 //          Microphone -> AudioQueueBuffer --FULL--> offload to audioBufferI16 --onTranscribe--> audioBufferF32 --> ctx --> text
 // New path:
-//          Microphone -> AudioQueueBuffer --FULL--> offload to audioRingBuffer ---onTranscribe--> audioBufferF32 --> ctx --> text
+//          Microphone -> AudioQueueBuffer --FULL--> offload to audioRingBuffer ---onTranscribe--> segment --> ctx --> text
 void AudioInputCallback(void * inUserData,
                         AudioQueueRef inAQ,
                         AudioQueueBufferRef inBuffer,
@@ -266,7 +261,6 @@ void AudioInputCallback(void * inUserData,
     // how many samples AudioBuffer captured
     const int n = inBuffer->mAudioDataByteSize / 2;
 
-    // deep copy raw audio from AudioQueueBuffer to audioBufferF32 (also convert)
     for (int i = 0; i < n; i++) {
         [stateInp->audioRingBuffer addSample:(float)((short*)inBuffer->mAudioData)[i] / 32768.0f];
     }
