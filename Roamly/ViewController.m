@@ -279,5 +279,7 @@ void AudioInputCallback(void * inUserData,
 
 - (IBAction)buttonClear:(id)sender {
     self->_selfTextView.text = @"";
+    self->stateInp.result = [NSMutableString stringWithString:@""];
 }
+
 @end
