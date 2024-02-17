@@ -58,7 +58,7 @@
      
     // here we allocate the memory for pcmf32, to be used to transcribe
     stateInp.audioBufferF32 = malloc(stateInp.n_samples*sizeof(float));
-    stateInp.audioRingBuffer = [[RingBuffer alloc] initWithCapacity:RING_BUFFER_LEN_SEC*SAMPLE_RATE];
+//    stateInp.audioRingBuffer = [[RingBuffer alloc] initWithCapacity:RING_BUFFER_LEN_SEC*SAMPLE_RATE];
     
     stateInp.result = [NSMutableString stringWithString:@""];
     
@@ -80,10 +80,10 @@
     UIButton *button = (UIButton *)sender;
     self.isSelfTranscribing = YES;
     if (stateInp.isCapturing) {
-        NSLog(@"Self stop capture");
+        NSLog(@"Stop capture");
         [self stopCapturing];
     } else {
-        NSLog(@"Self start capture");
+        NSLog(@"Start capture");
         [self startAudioCapturing];
     }
     [self updateButton:button forCapturingState:stateInp.isCapturing];
@@ -151,6 +151,7 @@
     AudioQueueDispose(stateInp.queue, true);
     
     [self->stateInp.audioRingBuffer clear];
+    self->stateInp.audioRingBuffer = nil;
     [self->stateInp.transcriptionTimer invalidate];
     self->stateInp.transcriptionTimer = nil;
 }
@@ -276,4 +277,7 @@ void AudioInputCallback(void * inUserData,
     AudioQueueEnqueueBuffer(stateInp->queue, inBuffer, 0, NULL);
 }
 
+- (IBAction)buttonClear:(id)sender {
+    self->_selfTextView.text = @"";
+}
 @end

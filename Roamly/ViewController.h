@@ -61,6 +61,7 @@ void AudioInputCallback(void * inUserData,
 - (IBAction)selfStartButton:(id)sender;
 
 @property (weak, nonatomic) IBOutlet UIButton *selfStartButton;
+- (IBAction)buttonClear:(id)sender;
 
 // To track which textview to update
 @property (nonatomic, assign) BOOL isSelfTranscribing;
