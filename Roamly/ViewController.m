@@ -228,12 +228,10 @@
         
         // dispatch the result to the main thread
         dispatch_async(dispatch_get_main_queue(), ^{
-            dispatch_async(dispatch_get_main_queue(), ^{
-                if (self.isSelfTranscribing) {
-                    self->_selfTextView.text = self->stateInp.result;
-                }
-                self->stateInp.isTranscribing = false;
-            });
+            if (self.isSelfTranscribing) {
+                self->_selfTextView.text = self->stateInp.result;
+            }
+            self->stateInp.isTranscribing = false;
         });
     });
 }
