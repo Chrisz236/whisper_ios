@@ -10,11 +10,16 @@
 #import <AVFoundation/AVFoundation.h>
 #import <AudioToolbox/AudioQueue.h>
 
+#import "RingBuffer.h"
+
 #define NUM_BUFFERS 3
-#define MAX_AUDIO_SEC 30
+#define TRANSCRIBE_STEP_MS 3000
+#define RING_BUFFER_LEN_SEC 30
+
 #define SAMPLE_RATE 16000
 
-#define NUM_BYTES_PER_BUFFER 16*1024
+//#define NUM_BYTES_PER_BUFFER 16*1024
+#define NUM_BYTES_PER_BUFFER 32*1024
 
 typedef struct
 {
@@ -28,16 +33,19 @@ typedef struct
     AudioStreamBasicDescription dataFormat;
     AudioQueueBufferRef buffers[NUM_BUFFERS];
     
-    // n_samples = audioBufferF32.size()
     int n_samples;
-    // audioBufferF32 = pcm32 (model uses)
-    // model will transcribe this portion of audio
     float   * audioBufferF32;
+    RingBuffer *audioRingBuffer;
+    
+    float   * testBuffer;
+    int test_n;
     
     float   * toTranscribe;
 
     // ctx includes model current status
     struct whisper_context * ctx;
+    
+    NSMutableString * result;
 
     void * vc;
 } StateInp;
