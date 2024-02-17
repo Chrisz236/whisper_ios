@@ -31,7 +31,8 @@
 - (NSString *)getModelName {
 //    return @"ggml-base";
 //    return @"ggml-tiny";
-    return @"ggml-tiny.en";
+//    return @"ggml-tiny.en";
+    return @"ggml-base.en";
 }
 
 - (void)viewDidLoad {
@@ -53,14 +54,11 @@
     [self setupAudioFormat:&stateInp.dataFormat];
         
     // number of samples to transcribe
-    stateInp.n_samples = TRANSCRIBE_STEP_MS*SAMPLE_RATE/1000; // 500ms * 16000sample/s
+    stateInp.n_samples = TRANSCRIBE_STEP_MS*SAMPLE_RATE/1000; // 1000ms * 16000sample/s
      
     // here we allocate the memory for pcmf32, to be used to transcribe
     stateInp.audioBufferF32 = malloc(stateInp.n_samples*sizeof(float));
     stateInp.audioRingBuffer = [[RingBuffer alloc] initWithCapacity:RING_BUFFER_LEN_SEC*SAMPLE_RATE];
-    
-//    stateInp.testBuffer = malloc(30*16000*sizeof(float));
-//    stateInp.test_n = 0;
     
     stateInp.result = [NSMutableString stringWithString:@""];
     
@@ -129,6 +127,13 @@
         }
         stateInp.isCapturing = true;
         AudioQueueStart(stateInp.queue, NULL);
+        
+        // Start a timer to call onTranscribe at fixed intervals
+        self->stateInp.transcriptionTimer = [NSTimer scheduledTimerWithTimeInterval:TRANSCRIBE_STEP_MS / 1000.0
+                                                                   target:self
+                                                                 selector:@selector(onTranscribe:)
+                                                                 userInfo:nil
+                                                                  repeats:YES];
     } else {
         [self stopCapturing];
     }
@@ -146,7 +151,8 @@
     AudioQueueDispose(stateInp.queue, true);
     
     [self->stateInp.audioRingBuffer clear];
-    stateInp.audioRingBuffer = nil;
+    [self->stateInp.transcriptionTimer invalidate];
+    self->stateInp.transcriptionTimer = nil;
 }
 
 - (NSString *)getTextFromCxt:(struct whisper_context *) ctx{
@@ -177,13 +183,8 @@
 
     // dispatch the model to a background thread
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        float *transcribeSamples = (float *)malloc(sizeof(float) * self->stateInp.n_samples);
-        // fetch n_sample from ring buffer to transcribeSamples
-        [self->stateInp.audioRingBuffer readSamples:transcribeSamples count:self->stateInp.n_samples];
-        
-        for (int i = 0; i < 100; i++) {
-            NSLog(@"Sample %d: %f", i, transcribeSamples[i]);
-        }
+        float *segment = (float *)malloc(sizeof(float) * self->stateInp.n_samples);
+        [self->stateInp.audioRingBuffer readSamples:segment count:self->stateInp.n_samples];
         
         // run the model
         struct whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
@@ -208,50 +209,32 @@
 
         whisper_reset_timings(self->stateInp.ctx);
 
-        // param: ctx:            all whisper internal state weights
-        //        params:         hyper parameters
-        //        audioBufferF32: converted raw audio data
-        //        n_samples:      number of samples in audioBufferF32
-        if (whisper_full(self->stateInp.ctx, params, transcribeSamples, self->stateInp.n_samples) != 0) {
+        // param: ctx:       all whisper internal state weights
+        //        params:    hyper parameters
+        //        segment:   converted raw audio data
+        //        n_samples: number of samples in segment
+        if (whisper_full(self->stateInp.ctx, params, segment, self->stateInp.n_samples) != 0) {
             NSLog(@"Failed to run the model");
             self->_selfTextView.text = @"Failed to run the model";
 
             return;
         }
         
-//        if (whisper_full(self->stateInp.ctx, params, self->stateInp.testBuffer, self->stateInp.test_n) != 0) {
-//            NSLog(@"Failed to run the model");
-//            self->_selfTextView.text = @"Failed to run the model";
-//
-//            return;
-//        }
-        
         whisper_print_timings(self->stateInp.ctx);
 
         CFTimeInterval endTime = CACurrentMediaTime();
 
-        NSLog(@"\nProcessing time: %5.3f, on %d threads", endTime - startTime, params.n_threads);
+        NSLog(@"\nProcessing %dms samples in %5.3fs", TRANSCRIBE_STEP_MS, endTime - startTime);
         
         [self->stateInp.result appendString:[self getTextFromCxt:self->stateInp.ctx]];
+                
+        free(segment);
         
-        NSLog(@"result: %@", [self getTextFromCxt:self->stateInp.ctx]);
-        
-//        NSString * rst = [self getTextFromCxt:self->stateInp.ctx];
-        free(transcribeSamples);
-        
-//        const float tRecording = (float)self->stateInp.n_samples / (float)self->stateInp.dataFormat.mSampleRate;
-
-//        // append processing time
-//        result = [result stringByAppendingString:[NSString stringWithFormat:@"\n\n[recording time:  %5.3f s]", tRecording]];
-//        result = [result stringByAppendingString:[NSString stringWithFormat:@"  \n[processing time: %5.3f s]", endTime - startTime]];
-
         // dispatch the result to the main thread
         dispatch_async(dispatch_get_main_queue(), ^{
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (self.isSelfTranscribing) {
-                    // update the textview with new result
                     self->_selfTextView.text = self->stateInp.result;
-//                    self->_selfTextView.text = rst;
                 }
                 self->stateInp.isTranscribing = false;
             });
@@ -261,7 +244,10 @@
 
 // function is called when buffer in AudioQueueBufferRef is FULL
 // then this function will deep copy the content in that buffer to audioBufferI16
-// Microphone -> AudioQueueBuffer --FULL--> offload to audioBufferI16 --onTranscribe--> audioBufferF32 --> ctx --> text
+// Old path:
+//          Microphone -> AudioQueueBuffer --FULL--> offload to audioBufferI16 --onTranscribe--> audioBufferF32 --> ctx --> text
+// New path:
+//          Microphone -> AudioQueueBuffer --FULL--> offload to audioRingBuffer ---onTranscribe--> audioBufferF32 --> ctx --> text
 void AudioInputCallback(void * inUserData,
                         AudioQueueRef inAQ,
                         AudioQueueBufferRef inBuffer,
@@ -281,27 +267,13 @@ void AudioInputCallback(void * inUserData,
 
     // deep copy raw audio from AudioQueueBuffer to audioBufferF32 (also convert)
     for (int i = 0; i < n; i++) {
-        float sample = (float)((short*)inBuffer->mAudioData)[i] / 32768.0f;
-        [stateInp->audioRingBuffer addSample:sample];
-//        stateInp->testBuffer[stateInp->test_n + i] = sample;
-        
-//        if (i < 50) {
-//            NSLog(@"get sample %f", sample);
-//        }
+        [stateInp->audioRingBuffer addSample:(float)((short*)inBuffer->mAudioData)[i] / 32768.0f];
     }
     
     NSLog(@"%d new samples queued in ring buffer", n);
     
-//    stateInp->test_n += n;
-
     // put the buffer back in the queue, keep refill
     AudioQueueEnqueueBuffer(stateInp->queue, inBuffer, 0, NULL);
-
-    // dipatch onTranscribe() to the main thread
-    dispatch_async(dispatch_get_main_queue(), ^{
-        ViewController * vc = (__bridge ViewController *)(stateInp->vc);
-        [vc onTranscribe:nil];
-    });
 }
 
 @end

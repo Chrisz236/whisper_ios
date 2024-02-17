@@ -13,13 +13,10 @@
 #import "RingBuffer.h"
 
 #define NUM_BUFFERS 3
-#define TRANSCRIBE_STEP_MS 3000
+#define TRANSCRIBE_STEP_MS 10000
 #define RING_BUFFER_LEN_SEC 30
-
 #define SAMPLE_RATE 16000
-
-//#define NUM_BYTES_PER_BUFFER 16*1024
-#define NUM_BYTES_PER_BUFFER 32*1024
+#define NUM_BYTES_PER_BUFFER 16*1024
 
 typedef struct
 {
@@ -34,18 +31,14 @@ typedef struct
     AudioQueueBufferRef buffers[NUM_BUFFERS];
     
     int n_samples;
-    float   * audioBufferF32;
-    RingBuffer *audioRingBuffer;
+    float * audioBufferF32;
+    RingBuffer * audioRingBuffer;
     
-    float   * testBuffer;
-    int test_n;
-    
-    float   * toTranscribe;
-
     // ctx includes model current status
     struct whisper_context * ctx;
     
     NSMutableString * result;
+    NSTimer * transcriptionTimer;
 
     void * vc;
 } StateInp;
