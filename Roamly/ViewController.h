@@ -18,6 +18,11 @@
 #define SAMPLE_RATE 16000
 #define NUM_BYTES_PER_BUFFER 16*1024
 
+// silence detection setup
+#define WHISPER_MAX_LEN_SEC 30
+#define SILENCE_THOLD 0.0005
+#define MIN_SILENCE_MS 500
+
 typedef struct
 {
     int ggwaveId;
@@ -38,6 +43,8 @@ typedef struct
     
     NSMutableString * result;
     NSTimer * transcriptionTimer;
+    
+    NSMutableString * audioWave;
 
     void * vc;
 } StateInp;

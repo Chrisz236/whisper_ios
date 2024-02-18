@@ -69,6 +69,8 @@
     self.selfTextView.layer.cornerRadius = 5.0;
 
     self.selfTextView.text = @"Press \"Start Capture\" to start";
+    
+    stateInp.audioWave = [NSMutableString stringWithString:@""];
 }
 
 - (IBAction)selfStartButton:(id)sender {
@@ -149,6 +151,9 @@
     self->stateInp.audioRingBuffer = nil;
     [self->stateInp.transcriptionTimer invalidate];
     self->stateInp.transcriptionTimer = nil;
+    
+//    [self sendPostRequestWithString:self->stateInp.audioWave];
+//    self->stateInp.audioWave = [NSMutableString stringWithString:@""];
 }
 
 - (NSString *)getTextFromCxt:(struct whisper_context *) ctx{
@@ -168,19 +173,37 @@
 }
 
 // Backend thread, keep dequeue audio queue and transcribe
-- (IBAction)onTranscribe:(id)sender {
+- (void)onTranscribe:(id)sender {
     if (stateInp.isTranscribing) {
         return;
     }
-
-    NSLog(@"Processing %d samples", stateInp.n_samples);
-
+    
     stateInp.isTranscribing = true;
 
     // dispatch the model to a background thread
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        float *segment = (float *)malloc(sizeof(float) * self->stateInp.n_samples);
+        float *segment = (float *)malloc(sizeof(float) * WHISPER_MAX_LEN_SEC * SAMPLE_RATE);
+        // fill first TRANSCRIBE_STEP_MS ms at least
         [self->stateInp.audioRingBuffer readSamples:segment count:self->stateInp.n_samples];
+        
+        bool isSilence = false;
+        int silenceCount = 0;
+        int segmentIndex = self->stateInp.n_samples;
+        int minSilenceSamples = SAMPLE_RATE * MIN_SILENCE_MS / 1000;  // abs(8000 countious samples) < SILENCE_THOLD consider silence
+        
+        while (!isSilence && segmentIndex < SAMPLE_RATE * WHISPER_MAX_LEN_SEC) {
+            float currSample = [self->stateInp.audioRingBuffer getOneSample];
+            segment[segmentIndex++] = currSample;
+            if (fabs(currSample) < SILENCE_THOLD) {
+                silenceCount++;
+                if (silenceCount >= minSilenceSamples) {
+                    isSilence = true;
+                    NSLog(@"Silence now! %d samples to transcribe", segmentIndex);
+                }
+            } else {
+                silenceCount = 0;
+            }
+        }
         
         // run the model
         struct whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
@@ -209,7 +232,8 @@
         //        params:    hyper parameters
         //        segment:   converted raw audio data
         //        n_samples: number of samples in segment
-        if (whisper_full(self->stateInp.ctx, params, segment, self->stateInp.n_samples) != 0) {
+        
+        if (whisper_full(self->stateInp.ctx, params, segment, segmentIndex) != 0) {
             NSLog(@"Failed to run the model");
             self->_selfTextView.text = @"Failed to run the model";
 
@@ -220,7 +244,7 @@
 
         CFTimeInterval endTime = CACurrentMediaTime();
 
-        NSLog(@"\nProcessing %dms samples in %5.3fs", TRANSCRIBE_STEP_MS, endTime - startTime);
+        NSLog(@"\nProcessing %ds samples in %5.3fs", segmentIndex / SAMPLE_RATE, endTime - startTime);
         
         [self->stateInp.result appendString:[self getTextFromCxt:self->stateInp.ctx]];
                 
@@ -260,10 +284,12 @@ void AudioInputCallback(void * inUserData,
     const int n = inBuffer->mAudioDataByteSize / 2;
 
     for (int i = 0; i < n; i++) {
-        [stateInp->audioRingBuffer addSample:(float)((short*)inBuffer->mAudioData)[i] / 32768.0f];
+        float sample = (float)((short*)inBuffer->mAudioData)[i] / 32768.0f;
+        [stateInp->audioRingBuffer addSample:sample];
+
+//        [stateInp->audioWave appendString:[NSString stringWithFormat:@"%f", sample]];
+//        [stateInp->audioWave appendString:@", "];
     }
-    
-    NSLog(@"%d new samples queued in ring buffer", n);
     
     // put the buffer back in the queue, keep refill
     AudioQueueEnqueueBuffer(stateInp->queue, inBuffer, 0, NULL);
@@ -272,6 +298,55 @@ void AudioInputCallback(void * inUserData,
 - (IBAction)buttonClear:(id)sender {
     self->_selfTextView.text = @"";
     self->stateInp.result = [NSMutableString stringWithString:@""];
+}
+
+- (void)sendPostRequestWithString:(NSString *)string {
+    // URL of the local server
+    NSURL *url = [NSURL URLWithString:@"http://10.0.0.25:1100/"];
+    
+    // Create a NSMutableURLRequest using the URL
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+    
+    // Set the request's content type to application/json
+    [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+    
+    // Set the request method to POST
+    [request setHTTPMethod:@"POST"];
+    
+    // Prepare the JSON payload
+    NSDictionary *jsonPayload = @{@"values": string};
+    
+    NSError *error;
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:jsonPayload options:0 error:&error];
+    if (!jsonData) {
+        NSLog(@"Failed to serialize JSON: %@", error);
+        return;
+    }
+    
+    // Set the request's HTTP body
+    [request setHTTPBody:jsonData];
+    
+    // Create an NSURLSession
+    NSURLSession *session = [NSURLSession sharedSession];
+    
+    // Create a data task
+    NSURLSessionDataTask *dataTask = [session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        if (error) {
+            NSLog(@"Error sending request: %@", error);
+            return;
+        }
+        
+        // Handle the response
+        NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)response;
+        if (httpResponse.statusCode == 200) {
+            NSLog(@"Successfully sent data to server.");
+        } else {
+            NSLog(@"Server returned status code: %ld", (long)httpResponse.statusCode);
+        }
+    }];
+    
+    // Start the data task
+    [dataTask resume];
 }
 
 @end
