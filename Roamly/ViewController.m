@@ -54,7 +54,7 @@
     [self setupAudioFormat:&stateInp.dataFormat];
         
     // number of samples to transcribe
-    stateInp.n_samples = TRANSCRIBE_STEP_MS*SAMPLE_RATE/1000; // 1000ms * 16000sample/s
+    stateInp.n_samples = TRANSCRIBE_STEP_MS*SAMPLE_RATE/1000; // 3000ms * 16000sample/s
     stateInp.result = [NSMutableString stringWithString:@""];
     
     stateInp.isTranscribing = false;
@@ -124,7 +124,6 @@
         }
         stateInp.isCapturing = true;
         AudioQueueStart(stateInp.queue, NULL);
-        
         // Start a timer to call onTranscribe at fixed intervals
         self->stateInp.transcriptionTimer = [NSTimer scheduledTimerWithTimeInterval:TRANSCRIBE_STEP_MS / 1000.0
                                                                    target:self
@@ -174,13 +173,11 @@
 
 // Backend thread, keep dequeue audio queue and transcribe
 - (void)onTranscribe:(id)sender {
-    if (stateInp.isTranscribing) {
-        return;
-    }
+    if (stateInp.isTranscribing) return;
     
     stateInp.isTranscribing = true;
 
-    // dispatch the model to a background thread
+    // dispatch the transcription to background
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         float *segment = (float *)malloc(sizeof(float) * WHISPER_MAX_LEN_SEC * SAMPLE_RATE);
         // fill first TRANSCRIBE_STEP_MS ms at least
@@ -193,6 +190,9 @@
         
         while (!isSilence && segmentIndex < SAMPLE_RATE * WHISPER_MAX_LEN_SEC) {
             float currSample = [self->stateInp.audioRingBuffer getOneSample];
+            if (currSample == 2.0f) {
+                [NSThread sleepForTimeInterval:0.1];
+            }
             segment[segmentIndex++] = currSample;
             if (fabs(currSample) < SILENCE_THOLD) {
                 silenceCount++;
