@@ -21,6 +21,9 @@
 // Reads samples from the ring buffer into a provided buffer.
 - (void)readSamples:(float *)buffer count:(NSUInteger)count;
 
+// Gets one sample from the ring buffer.
+- (float)getOneSample;
+
 // Clears the ring buffer.
 - (void)clear;
 

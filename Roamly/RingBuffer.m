@@ -67,6 +67,19 @@
     }
 }
 
+- (float)getOneSample {
+    if (_head == _tail && !_isFull) {
+        // Buffer is empty, return 0 or handle it according to your needs
+        return 0.0f;
+    }
+
+    float sample = _buffer[_tail];
+    _tail = (_tail + 1) % _capacity;
+    _isFull = NO; // Once we read a sample, the buffer can't be full
+
+    return sample;
+}
+
 - (NSUInteger)availableSamples {
     if (_isFull) {
         return _capacity;
