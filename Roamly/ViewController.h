@@ -20,8 +20,8 @@
 
 // silence detection setup
 #define WHISPER_MAX_LEN_SEC 30
-#define SILENCE_THOLD 0.005
-#define MIN_SILENCE_MS 500
+#define SILENCE_THOLD 0.008
+#define MIN_SILENCE_MS 100
 
 typedef struct
 {

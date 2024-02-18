@@ -282,14 +282,18 @@ void AudioInputCallback(void * inUserData,
     
     // how many samples AudioBuffer captured
     const int n = inBuffer->mAudioDataByteSize / 2;
-
+    
+//    float sum = 0.0f;
     for (int i = 0; i < n; i++) {
         float sample = (float)((short*)inBuffer->mAudioData)[i] / 32768.0f;
         [stateInp->audioRingBuffer addSample:sample];
+//        sum += fabs(sample);
 
 //        [stateInp->audioWave appendString:[NSString stringWithFormat:@"%f", sample]];
 //        [stateInp->audioWave appendString:@", "];
     }
+    
+//    NSLog(@"Avg in buffer: %f", sum / n);
     
     // put the buffer back in the queue, keep refill
     AudioQueueEnqueueBuffer(stateInp->queue, inBuffer, 0, NULL);
