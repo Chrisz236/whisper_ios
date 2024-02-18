@@ -69,8 +69,8 @@
 
 - (float)getOneSample {
     if (_head == _tail && !_isFull) {
-        // Buffer is empty, return 0 or handle it according to your needs
-        return 0.0f;
+        // Buffer is empty, return 2.0
+        return 2.0f;
     }
 
     float sample = _buffer[_tail];
