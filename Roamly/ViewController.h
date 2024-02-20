@@ -10,11 +10,18 @@
 #import <AVFoundation/AVFoundation.h>
 #import <AudioToolbox/AudioQueue.h>
 
-#define NUM_BUFFERS 3
-#define MAX_AUDIO_SEC 30
-#define SAMPLE_RATE 16000
+#import "RingBuffer.h"
 
-#define NUM_BYTES_PER_BUFFER 16*1024
+#define NUM_BUFFERS 3
+#define TRANSCRIBE_STEP_MS 3000
+#define RING_BUFFER_LEN_SEC 30
+#define SAMPLE_RATE 16000
+#define NUM_BYTES_PER_BUFFER 1600  // 0.05s per buffer
+
+// silence detection setup
+#define WHISPER_MAX_LEN_SEC 30
+#define SILENCE_THOLD 0.008
+#define MIN_SILENCE_MS 100
 
 typedef struct
 {
@@ -27,12 +34,17 @@ typedef struct
     AudioQueueRef queue;
     AudioStreamBasicDescription dataFormat;
     AudioQueueBufferRef buffers[NUM_BUFFERS];
-
+    
     int n_samples;
-    int16_t * audioBufferI16;
-    float   * audioBufferF32;
-
+    RingBuffer * audioRingBuffer;
+    
+    // ctx includes model current status
     struct whisper_context * ctx;
+    
+    NSMutableString * result;
+    NSTimer * transcriptionTimer;
+    
+    NSMutableString * audioWave;
 
     void * vc;
 } StateInp;
@@ -51,13 +63,11 @@ void AudioInputCallback(void * inUserData,
     StateInp stateInp;
 }
 
-@property (weak, nonatomic) IBOutlet UITextView *foreignTextView;
 @property (weak, nonatomic) IBOutlet UITextView *selfTextView;
 - (IBAction)selfStartButton:(id)sender;
-- (IBAction)foreignStartButton:(id)sender;
 
 @property (weak, nonatomic) IBOutlet UIButton *selfStartButton;
-@property (weak, nonatomic) IBOutlet UIButton *foreignStartButton;
+- (IBAction)buttonClear:(id)sender;
 
 // To track which textview to update
 @property (nonatomic, assign) BOOL isSelfTranscribing;

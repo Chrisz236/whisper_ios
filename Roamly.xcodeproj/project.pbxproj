@@ -27,6 +27,10 @@
 		E7817F452B7AEEAD00D58CEE /* ggml-tiny-encoder.mlmodelc in Resources */ = {isa = PBXBuildFile; fileRef = E7817F442B7AEEAC00D58CEE /* ggml-tiny-encoder.mlmodelc */; };
 		E7817F482B7AEF0A00D58CEE /* ggml-tiny.bin in Resources */ = {isa = PBXBuildFile; fileRef = E7817F462B7AEF0A00D58CEE /* ggml-tiny.bin */; };
 		E7817F492B7AEF0A00D58CEE /* ggml-base.bin in Resources */ = {isa = PBXBuildFile; fileRef = E7817F472B7AEF0A00D58CEE /* ggml-base.bin */; };
+		E7817F4D2B7C4D5100D58CEE /* ggml-base.en.bin in Resources */ = {isa = PBXBuildFile; fileRef = E7817F4B2B7C4D5000D58CEE /* ggml-base.en.bin */; };
+		E7817F4E2B7C4D5100D58CEE /* ggml-tiny.en.bin in Resources */ = {isa = PBXBuildFile; fileRef = E7817F4C2B7C4D5100D58CEE /* ggml-tiny.en.bin */; };
+		E7817F512B7C4D7D00D58CEE /* ggml-tiny.en-encoder.mlmodelc in Resources */ = {isa = PBXBuildFile; fileRef = E7817F4F2B7C4D7D00D58CEE /* ggml-tiny.en-encoder.mlmodelc */; };
+		E7817F522B7C4D7D00D58CEE /* ggml-base.en-encoder.mlmodelc in Resources */ = {isa = PBXBuildFile; fileRef = E7817F502B7C4D7D00D58CEE /* ggml-base.en-encoder.mlmodelc */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -66,6 +70,10 @@
 		E7817F442B7AEEAC00D58CEE /* ggml-tiny-encoder.mlmodelc */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = "ggml-tiny-encoder.mlmodelc"; sourceTree = "<group>"; };
 		E7817F462B7AEF0A00D58CEE /* ggml-tiny.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; name = "ggml-tiny.bin"; path = "models/ggml-tiny.bin"; sourceTree = "<group>"; };
 		E7817F472B7AEF0A00D58CEE /* ggml-base.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; name = "ggml-base.bin"; path = "models/ggml-base.bin"; sourceTree = "<group>"; };
+		E7817F4B2B7C4D5000D58CEE /* ggml-base.en.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; name = "ggml-base.en.bin"; path = "models/ggml-base.en.bin"; sourceTree = "<group>"; };
+		E7817F4C2B7C4D5100D58CEE /* ggml-tiny.en.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; name = "ggml-tiny.en.bin"; path = "models/ggml-tiny.en.bin"; sourceTree = "<group>"; };
+		E7817F4F2B7C4D7D00D58CEE /* ggml-tiny.en-encoder.mlmodelc */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = "ggml-tiny.en-encoder.mlmodelc"; sourceTree = "<group>"; };
+		E7817F502B7C4D7D00D58CEE /* ggml-base.en-encoder.mlmodelc */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = "ggml-base.en-encoder.mlmodelc"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,11 +116,15 @@
 				E7817F0D2B77000600D58CEE /* ggml-quants.h */,
 				E7817F152B77001600D58CEE /* ggml-alloc.c */,
 				E7817F162B77001600D58CEE /* ggml-alloc.h */,
+				E7817F502B7C4D7D00D58CEE /* ggml-base.en-encoder.mlmodelc */,
+				E7817F4F2B7C4D7D00D58CEE /* ggml-tiny.en-encoder.mlmodelc */,
 				E7817F142B77001600D58CEE /* ggml-base-encoder.mlmodelc */,
 				E7817F442B7AEEAC00D58CEE /* ggml-tiny-encoder.mlmodelc */,
 				E7817F3D2B77088800D58CEE /* coreml */,
 				E7817F472B7AEF0A00D58CEE /* ggml-base.bin */,
 				E7817F462B7AEF0A00D58CEE /* ggml-tiny.bin */,
+				E7817F4B2B7C4D5000D58CEE /* ggml-base.en.bin */,
+				E7817F4C2B7C4D5100D58CEE /* ggml-tiny.en.bin */,
 				E7817F222B77009100D58CEE /* ggml.c */,
 				E7817F242B77009200D58CEE /* ggml.h */,
 				E7817F232B77009100D58CEE /* whisper.cpp */,
@@ -121,8 +133,8 @@
 				E74D8E482B76D7CF001CC964 /* AppDelegate.m */,
 				E74D8E4A2B76D7CF001CC964 /* SceneDelegate.h */,
 				E74D8E4B2B76D7CF001CC964 /* SceneDelegate.m */,
-				E74D8E4E2B76D7CF001CC964 /* ViewController.m */,
 				E74D8E4D2B76D7CF001CC964 /* ViewController.h */,
+				E74D8E4E2B76D7CF001CC964 /* ViewController.m */,
 				E74D8E502B76D7CF001CC964 /* Main.storyboard */,
 				E74D8E532B76D7D1001CC964 /* Assets.xcassets */,
 				E74D8E552B76D7D1001CC964 /* LaunchScreen.storyboard */,
@@ -205,10 +217,14 @@
 				E74D8E572B76D7D1001CC964 /* LaunchScreen.storyboard in Resources */,
 				E7817F452B7AEEAD00D58CEE /* ggml-tiny-encoder.mlmodelc in Resources */,
 				E74D8E542B76D7D1001CC964 /* Assets.xcassets in Resources */,
+				E7817F522B7C4D7D00D58CEE /* ggml-base.en-encoder.mlmodelc in Resources */,
 				E7817F492B7AEF0A00D58CEE /* ggml-base.bin in Resources */,
+				E7817F512B7C4D7D00D58CEE /* ggml-tiny.en-encoder.mlmodelc in Resources */,
 				E74D8E522B76D7CF001CC964 /* Main.storyboard in Resources */,
 				E7817F482B7AEF0A00D58CEE /* ggml-tiny.bin in Resources */,
 				E7817F182B77001600D58CEE /* ggml-base-encoder.mlmodelc in Resources */,
+				E7817F4E2B7C4D5100D58CEE /* ggml-tiny.en.bin in Resources */,
+				E7817F4D2B7C4D5100D58CEE /* ggml-base.en.bin in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
