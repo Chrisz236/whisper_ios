@@ -246,7 +246,12 @@
 
         NSLog(@"\nProcessing %ds samples in %5.3fs", segmentIndex / SAMPLE_RATE, endTime - startTime);
         
-        [self->stateInp.result appendString:[self getTextFromCxt:self->stateInp.ctx]];
+        NSString *segmentResult = [self getTextFromCxt:self->stateInp.ctx];
+        
+        // don't append [BLANK_AUDIO] in result
+        if (![segmentResult isEqualToString:@"[BLANK_AUDIO]"]) {
+            [self->stateInp.result appendString:segmentResult];
+        }
                 
         free(segment);
         
