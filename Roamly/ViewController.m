@@ -60,6 +60,8 @@
     stateInp.isTranscribing = false;
     stateInp.isRealtime = true;
     
+    stateInp.excludedStrings = @[@"[BLANK_AUDIO]", @"(clapping)", @"(crowd murmuring)", @"[APPLAUSE]"];
+    
     // Init default UI
     [_selfStartButton setTitle:@"Start Capture" forState:UIControlStateNormal];
     [_selfStartButton setBackgroundColor:[UIColor lightGrayColor]];
@@ -249,7 +251,7 @@
         NSString *segmentResult = [self getTextFromCxt:self->stateInp.ctx];
         
         // don't append [BLANK_AUDIO] in result
-        if (![segmentResult isEqualToString:@"[BLANK_AUDIO]"]) {
+        if (![self->stateInp.excludedStrings containsObject:segmentResult]) {
             [self->stateInp.result appendString:segmentResult];
         }
                 

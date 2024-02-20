@@ -26,7 +26,7 @@ instruction to convert `ggml-*.bin` files to `*.mlmodelc` (coreml) file
 
 - Abstract the frontend and backend
 
-- Auto detect the language to transcribe (sometimes produce the wrong language)
+- Use circular buffer to enable unlimited processing real time audio
 
 ## Usage
 
@@ -38,8 +38,14 @@ cd whisper_ios/Roamly/ && mkdir models && cd models
 # for tiny model (39M parameters) 
 wget https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin
 
+# for tiny.en model (39M parameters) 
+wget https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin
+
 # for base model (74M parameters)
 wget https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
+
+# for base.en model (74M parameters)
+wget https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
 
 cd ../../ && open Roamly.xcodeproj/
 
@@ -48,6 +54,8 @@ cd ../../ && open Roamly.xcodeproj/
 after open the project in Xcode, drag the `bin` files from `models` folder to Xcode workspace (on the left where files are listed)
 
 ## Run on Xcode emulator
+
+Xcode 15 has BUG on run CoreML application, this approach is current not work (02/19/2024)
 
 To run project on Xcode emulator, add following code snippet after `struct whisper_context_params cparams = whisper_context_default_params();` in `- (void)viewDidLoad` function in `ViewController.m`
 
