@@ -45,6 +45,8 @@ typedef struct
     NSTimer * transcriptionTimer;
     
     NSMutableString * audioWave;
+    
+    NSArray * excludedStrings;
 
     void * vc;
 } StateInp;
