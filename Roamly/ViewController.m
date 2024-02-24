@@ -8,6 +8,7 @@
 #import "ViewController.h"
 
 #import "whisper.h"
+#import "WhisperTokenData.h"
 
 @interface ViewController ()
 
@@ -157,21 +158,24 @@
 //    self->stateInp.audioWave = [NSMutableString stringWithString:@""];
 }
 
-- (NSString *)getTextFromCxt:(struct whisper_context *) ctx{
-    NSString *result = @"";
+- (NSString *)getTextFromCxt:(struct whisper_context *)ctx {
+    NSMutableString *result = [NSMutableString string];
     
-    // get know how many segments model splits the given audio
-    int n_segments = whisper_full_n_segments(self->stateInp.ctx);
+    int n_segments = whisper_full_n_segments(ctx);
     
-    // concate text transcribed from each segment
     for (int i = 0; i < n_segments; i++) {
-        const char * text_cur = whisper_full_get_segment_text(self->stateInp.ctx, i);
-        // append the text to the result
-        result = [result stringByAppendingString:[NSString stringWithUTF8String:text_cur]];
+        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
+        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+        
+        const char *text_cur = whisper_full_get_segment_text(ctx, i);
+        NSString *segmentText = [NSString stringWithUTF8String:text_cur];
+        
+        [result appendFormat:@"[%5.3f --> %5.3f]  %@\n", t0/100.0, t1/100.0, segmentText];
     }
     
     return result;
 }
+
 
 // Backend thread, keep dequeue audio queue and transcribe
 - (void)onTranscribe:(id)sender {
@@ -223,8 +227,12 @@
         params.n_threads        = max_threads;
         params.offset_ms        = 0;
         params.no_context       = true;
-        params.single_segment   = self->stateInp.isRealtime;
-        params.no_timestamps    = params.single_segment;
+        params.single_segment   = false;
+        params.no_timestamps    = false;
+        
+        params.split_on_word    = true;
+        params.max_len          = 1;
+        params.token_timestamps = true;
 
         CFTimeInterval startTime = CACurrentMediaTime();
 
