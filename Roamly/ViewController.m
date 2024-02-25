@@ -236,6 +236,8 @@
             NSLog(@"Failed to run the model");
         } else {
             NSString *transcriptionResult = [self getTextFromCxt:self->stateInp.ctx];
+            whisper_print_timings(self->stateInp.ctx);
+            
             NSLog(@"Transcription result: \n%@", transcriptionResult);
             
             // Dispatch back to the main thread for any UI updates
