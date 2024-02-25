@@ -201,13 +201,6 @@
         return;
     }
 
-    // Ensure the count does not exceed the buffer's capacity from the starting index
-    NSUInteger availableSamples = [ringBuffer availableSamples];
-    if (count > availableSamples) {
-        NSLog(@"Requested sample count exceeds available samples. Adjusting to available samples.");
-        count = availableSamples;
-    }
-
     // Allocate memory for the segment to transcribe
     float *segment = (float *)malloc(sizeof(float) * count);
     if (!segment) {
@@ -218,38 +211,44 @@
     // Use peekSamples to copy the required audio data without modifying the buffer's read pointer
     [ringBuffer peekSamples:segment count:count fromIndex:startIndex];
 
-    // Prepare transcription parameters
-    struct whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-    const int max_threads = 2;
-    
-    params.print_realtime   = true;
-    params.print_progress   = false;
-    params.print_timestamps = true;
-    params.print_special    = false;
-    params.translate        = false;
-    params.language         = "en";
-    params.n_threads        = max_threads;
-    params.offset_ms        = 0;
-    params.no_context       = true;
-    params.single_segment   = false;
-    params.no_timestamps    = false;
-    
-    params.split_on_word    = true;
-    params.max_len          = 1;
-    params.token_timestamps = true;
-    
-    if (whisper_full(stateInp.ctx, params, segment, (int)count) != 0) {
-        NSLog(@"Failed to run the model");
-    } else {
-        NSString *transcriptionResult = [self getTextFromCxt:stateInp.ctx];
-        NSLog(@"Transcription result: %@", transcriptionResult);
-
-        dispatch_async(dispatch_get_main_queue(), ^{
-            self->_selfTextView.text = [self->_selfTextView.text stringByAppendingString:transcriptionResult];
-        });
-    }
-
-    free(segment);
+    // Dispatch transcription work to a background queue
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        // Prepare transcription parameters
+        struct whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+        const int max_threads = 2; // Use a suitable number of threads
+        
+        params.print_realtime   = true;
+        params.print_progress   = false;
+        params.print_timestamps = true;
+        params.print_special    = false;
+        params.translate        = false;
+        params.language         = "en";
+        params.n_threads        = max_threads;
+        params.offset_ms        = 0;
+        params.no_context       = true;
+        params.single_segment   = false;
+        params.no_timestamps    = false;
+        
+        params.split_on_word    = true;
+        params.max_len          = 1;
+        params.token_timestamps = true;
+        
+        // Perform the transcription
+        if (whisper_full(self->stateInp.ctx, params, segment, (int)count) != 0) {
+            NSLog(@"Failed to run the model");
+        } else {
+            NSString *transcriptionResult = [self getTextFromCxt:self->stateInp.ctx];
+            NSLog(@"Transcription result: %@", transcriptionResult);
+            
+            // Dispatch back to the main thread for any UI updates
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self->_selfTextView.text = [self->_selfTextView.text stringByAppendingString:transcriptionResult];
+            });
+        }
+        
+        // Free the allocated memory
+        free(segment);
+    });
 }
 
 // function is called when buffer in AudioQueueBufferRef is FULL
