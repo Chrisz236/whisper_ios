@@ -168,8 +168,6 @@
 
     AudioQueueDispose(stateInp.queue, true);
     
-    [self->stateInp.audioRingBuffer clear];
-    self->stateInp.audioRingBuffer = nil;
     [self->stateInp.transcriptionTimer invalidate];
     self->stateInp.transcriptionTimer = nil;
     
@@ -238,7 +236,7 @@
             NSLog(@"Failed to run the model");
         } else {
             NSString *transcriptionResult = [self getTextFromCxt:self->stateInp.ctx];
-            NSLog(@"Transcription result: %@", transcriptionResult);
+            NSLog(@"Transcription result: \n%@", transcriptionResult);
             
             // Dispatch back to the main thread for any UI updates
             dispatch_async(dispatch_get_main_queue(), ^{
