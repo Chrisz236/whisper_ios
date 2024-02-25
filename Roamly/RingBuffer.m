@@ -39,7 +39,7 @@
 
 - (void)addSample:(float)sample {
     if (_isFull) {
-        _tail = (_tail + 1) % _capacity; // Move tail forward if the buffer is full
+        _tail = (_tail + 1) % _capacity;
     }
 
     _buffer[_head] = sample;
@@ -51,6 +51,21 @@
     for (NSUInteger i = 0; i < count; i++) {
         [self addSample:samples[i]];
     }
+}
+
+- (void)peekSamples:(float *)buffer count:(NSUInteger)count fromIndex:(NSUInteger)index {
+    for (NSUInteger i = 0; i < count; i++) {
+        NSUInteger actualIndex = (index + i) % _capacity;
+        buffer[i] = _buffer[actualIndex];
+    }
+}
+
+- (float)peekOneSampleAtIndex:(NSUInteger)index {
+    if (index >= _capacity) {
+        // Handle out of bounds error or return a default value
+        return 2.0f; // Example default value
+    }
+    return _buffer[index];
 }
 
 - (void)readSamples:(float *)buffer count:(NSUInteger)count {
@@ -88,6 +103,14 @@
     } else {
         return _head + (_capacity - _tail);
     }
+}
+
+- (NSUInteger)headIndex {
+    return _head;
+}
+
+- (NSUInteger)tailIndex {
+    return _tail;
 }
 
 - (void)clear {

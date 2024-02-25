@@ -8,7 +8,6 @@
 #import "ViewController.h"
 
 #import "whisper.h"
-#import "WhisperTokenData.h"
 
 @interface ViewController ()
 
@@ -45,7 +44,6 @@
     
     struct whisper_context_params cparams = whisper_context_default_params();
     stateInp.ctx = whisper_init_from_file_with_params([modelPath UTF8String], cparams);
-    stateInp.isRealtime = true;
     
     if (stateInp.ctx == NULL) {
         NSLog(@"Failed to load model");
@@ -57,10 +55,9 @@
     // number of samples to transcribe
     stateInp.n_samples = TRANSCRIBE_STEP_MS*SAMPLE_RATE/1000; // 3000ms * 16000sample/s
     stateInp.result = [NSMutableString stringWithString:@""];
+    stateInp.audioRingBuffer = [[RingBuffer alloc] initWithCapacity:RING_BUFFER_LEN_SEC*SAMPLE_RATE];
     
     stateInp.isTranscribing = false;
-    stateInp.isRealtime = true;
-    
     stateInp.excludedStrings = @[@"[BLANK_AUDIO]", @"(clapping)", @"(crowd murmuring)", @"[APPLAUSE]"];
     
     // Init default UI
@@ -100,17 +97,13 @@
     [button setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
 }
 
-// Frontend thread (main), keep enqueue the audio chunk
 - (void)startAudioCapturing {
     if (stateInp.isCapturing) {
         [self stopCapturing];
         return;
     }
     
-    stateInp.audioRingBuffer = [[RingBuffer alloc] initWithCapacity:RING_BUFFER_LEN_SEC*SAMPLE_RATE];
-
     NSLog(@"Start capturing");
-    
     stateInp.vc = (__bridge void *)(self);
     OSStatus status = AudioQueueNewInput(&stateInp.dataFormat,
                                          AudioInputCallback,
@@ -127,15 +120,41 @@
         }
         stateInp.isCapturing = true;
         AudioQueueStart(stateInp.queue, NULL);
-        // Start a timer to call onTranscribe at fixed intervals
+        
+        // Cancel any existing timer if it exists
+        [self->stateInp.transcriptionTimer invalidate];
+        
+        // Wait TRANSCRIBE_STEP_MS ms to start the first transcription
         self->stateInp.transcriptionTimer = [NSTimer scheduledTimerWithTimeInterval:TRANSCRIBE_STEP_MS / 1000.0
-                                                                   target:self
-                                                                 selector:@selector(onTranscribe:)
-                                                                 userInfo:nil
-                                                                  repeats:YES];
+                                                                              target:self
+                                                                            selector:@selector(initialTranscriptionCall)
+                                                                            userInfo:nil
+                                                                             repeats:NO];
     } else {
         [self stopCapturing];
     }
+}
+
+- (void)initialTranscriptionCall {
+    NSUInteger sampleCount = TRANSCRIBE_STEP_MS * SAMPLE_RATE / 1000;
+    [self transcribeFromRingBuffer:stateInp.audioRingBuffer startingAtIndex:0 sampleCount:sampleCount];
+    
+    // Setup a regular call with offset
+    self->stateInp.transcriptionTimer = [NSTimer scheduledTimerWithTimeInterval:TRANSCRIBE_OFFSET_MS / 1000.0
+                                                                          target:self
+                                                                        selector:@selector(regularTranscriptionCall)
+                                                                        userInfo:nil
+                                                                         repeats:YES];
+}
+
+- (void)regularTranscriptionCall {
+    static NSUInteger startIndex = 0;
+    NSUInteger sampleCount = TRANSCRIBE_STEP_MS * SAMPLE_RATE / 1000;
+    NSUInteger stepSize = TRANSCRIBE_OFFSET_MS * SAMPLE_RATE / 1000;
+    
+    startIndex += stepSize;
+    
+    [self transcribeFromRingBuffer:stateInp.audioRingBuffer startingAtIndex:startIndex sampleCount:sampleCount];
 }
 
 - (IBAction)stopCapturing {
@@ -176,103 +195,61 @@
     return result;
 }
 
+- (void)transcribeFromRingBuffer:(RingBuffer *)ringBuffer startingAtIndex:(NSUInteger)startIndex sampleCount:(NSInteger)count {
+    if (!ringBuffer || count == 0) {
+        NSLog(@"Invalid ring buffer or count");
+        return;
+    }
 
-// Backend thread, keep dequeue audio queue and transcribe
-- (void)onTranscribe:(id)sender {
-    if (stateInp.isTranscribing) return;
+    // Ensure the count does not exceed the buffer's capacity from the starting index
+    NSUInteger availableSamples = [ringBuffer availableSamples];
+    if (count > availableSamples) {
+        NSLog(@"Requested sample count exceeds available samples. Adjusting to available samples.");
+        count = availableSamples;
+    }
+
+    // Allocate memory for the segment to transcribe
+    float *segment = (float *)malloc(sizeof(float) * count);
+    if (!segment) {
+        NSLog(@"Failed to allocate memory for audio segment");
+        return;
+    }
+
+    // Use peekSamples to copy the required audio data without modifying the buffer's read pointer
+    [ringBuffer peekSamples:segment count:count fromIndex:startIndex];
+
+    // Prepare transcription parameters
+    struct whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+    const int max_threads = 2;
     
-    stateInp.isTranscribing = true;
+    params.print_realtime   = true;
+    params.print_progress   = false;
+    params.print_timestamps = true;
+    params.print_special    = false;
+    params.translate        = false;
+    params.language         = "en";
+    params.n_threads        = max_threads;
+    params.offset_ms        = 0;
+    params.no_context       = true;
+    params.single_segment   = false;
+    params.no_timestamps    = false;
+    
+    params.split_on_word    = true;
+    params.max_len          = 1;
+    params.token_timestamps = true;
+    
+    if (whisper_full(stateInp.ctx, params, segment, (int)count) != 0) {
+        NSLog(@"Failed to run the model");
+    } else {
+        NSString *transcriptionResult = [self getTextFromCxt:stateInp.ctx];
+        NSLog(@"Transcription result: %@", transcriptionResult);
 
-    // dispatch the transcription to background
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        float *segment = (float *)malloc(sizeof(float) * WHISPER_MAX_LEN_SEC * SAMPLE_RATE);
-        // fill first TRANSCRIBE_STEP_MS ms at least
-        [self->stateInp.audioRingBuffer readSamples:segment count:self->stateInp.n_samples];
-        
-        bool isSilence = false;
-        int silenceCount = 0;
-        int segmentIndex = self->stateInp.n_samples;
-        int minSilenceSamples = SAMPLE_RATE * MIN_SILENCE_MS / 1000;  // abs(8000 countious samples) < SILENCE_THOLD consider silence
-        
-        while (!isSilence && segmentIndex < SAMPLE_RATE * WHISPER_MAX_LEN_SEC) {
-            float currSample = [self->stateInp.audioRingBuffer getOneSample];
-            if (currSample == 2.0f) {
-                [NSThread sleepForTimeInterval:0.1];
-            }
-            segment[segmentIndex++] = currSample;
-            if (fabs(currSample) < SILENCE_THOLD) {
-                silenceCount++;
-                if (silenceCount >= minSilenceSamples) {
-                    isSilence = true;
-                    NSLog(@"Silence now! %d samples to transcribe", segmentIndex);
-                }
-            } else {
-                silenceCount = 0;
-            }
-        }
-        
-        // run the model
-        struct whisper_full_params params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-
-        // get maximum number of threads on this device (max 8)
-        // const int max_threads = MIN(8, (int)[[NSProcessInfo processInfo] processorCount]);
-        const int max_threads = 4;
-        
-        params.print_realtime   = true;
-        params.print_progress   = false;
-        params.print_timestamps = true;
-        params.print_special    = false;
-        params.translate        = false;
-        params.language         = "en";
-        params.n_threads        = max_threads;
-        params.offset_ms        = 0;
-        params.no_context       = true;
-        params.single_segment   = false;
-        params.no_timestamps    = false;
-        
-        params.split_on_word    = true;
-        params.max_len          = 1;
-        params.token_timestamps = true;
-
-        CFTimeInterval startTime = CACurrentMediaTime();
-
-        whisper_reset_timings(self->stateInp.ctx);
-
-        // param: ctx:       all whisper internal state weights
-        //        params:    hyper parameters
-        //        segment:   converted raw audio data
-        //        n_samples: number of samples in segment
-        
-        if (whisper_full(self->stateInp.ctx, params, segment, segmentIndex) != 0) {
-            NSLog(@"Failed to run the model");
-            self->_selfTextView.text = @"Failed to run the model";
-
-            return;
-        }
-        
-        whisper_print_timings(self->stateInp.ctx);
-
-        CFTimeInterval endTime = CACurrentMediaTime();
-
-        NSLog(@"\nProcessing %ds samples in %5.3fs", segmentIndex / SAMPLE_RATE, endTime - startTime);
-        
-        NSString *segmentResult = [self getTextFromCxt:self->stateInp.ctx];
-        
-        // don't append [BLANK_AUDIO] in result
-        if (![self->stateInp.excludedStrings containsObject:segmentResult]) {
-            [self->stateInp.result appendString:segmentResult];
-        }
-                
-        free(segment);
-        
-        // dispatch the result to the main thread
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (self.isSelfTranscribing) {
-                self->_selfTextView.text = self->stateInp.result;
-            }
-            self->stateInp.isTranscribing = false;
+            self->_selfTextView.text = [self->_selfTextView.text stringByAppendingString:transcriptionResult];
         });
-    });
+    }
+
+    free(segment);
 }
 
 // function is called when buffer in AudioQueueBufferRef is FULL

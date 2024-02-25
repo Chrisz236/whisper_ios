@@ -24,7 +24,19 @@
 // Gets one sample from the ring buffer.
 - (float)getOneSample;
 
+// Reads samples from the ring buffer into a provided buffer, without moving the tail.
+- (void)peekSamples:(float *)buffer count:(NSUInteger)count fromIndex:(NSUInteger)index;
+
+// Gets one sample from the ring buffer, without moving the tail.
+- (float)peekOneSampleAtIndex:(NSUInteger)index;
+
 // Clears the ring buffer.
 - (void)clear;
+
+- (NSUInteger)availableSamples;
+
+// Direct access methods
+- (NSUInteger)headIndex;
+- (NSUInteger)tailIndex;
 
 @end

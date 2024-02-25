@@ -14,13 +14,15 @@
 
 #define NUM_BUFFERS 3
 #define TRANSCRIBE_STEP_MS 3000
+#define TRANSCRIBE_OFFSET_MS 1000
 #define RING_BUFFER_LEN_SEC 30
 #define SAMPLE_RATE 16000
 #define NUM_BYTES_PER_BUFFER 1600  // 0.05s per buffer
 
 // silence detection setup
 #define WHISPER_MAX_LEN_SEC 30
-#define SILENCE_THOLD 0.008
+//#define SILENCE_THOLD 0.008
+#define SILENCE_THOLD 0.9
 #define MIN_SILENCE_MS 100
 
 typedef struct
