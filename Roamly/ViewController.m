@@ -53,7 +53,7 @@
     [self setupAudioFormat:&stateInp.dataFormat];
         
     // number of samples to transcribe
-    stateInp.n_samples = TRANSCRIBE_STEP_MS*SAMPLE_RATE/1000; // 3000ms * 16000sample/s
+    stateInp.n_samples = TRANSCRIBE_WINDOW_MS*SAMPLE_RATE/1000; // 3000ms * 16000sample/s
     stateInp.result = [NSMutableString stringWithString:@""];
     stateInp.audioRingBuffer = [[RingBuffer alloc] initWithCapacity:RING_BUFFER_LEN_SEC*SAMPLE_RATE];
     
@@ -124,8 +124,8 @@
         // Cancel any existing timer if it exists
         [self->stateInp.transcriptionTimer invalidate];
         
-        // Wait TRANSCRIBE_STEP_MS ms to start the first transcription
-        self->stateInp.transcriptionTimer = [NSTimer scheduledTimerWithTimeInterval:TRANSCRIBE_STEP_MS / 1000.0
+        // Wait TRANSCRIBE_WINDOW_MS ms to start the first transcription
+        self->stateInp.transcriptionTimer = [NSTimer scheduledTimerWithTimeInterval:TRANSCRIBE_WINDOW_MS / 1000.0
                                                                               target:self
                                                                             selector:@selector(initialTranscriptionCall)
                                                                             userInfo:nil
@@ -136,8 +136,8 @@
 }
 
 - (void)initialTranscriptionCall {
-    NSUInteger sampleCount = TRANSCRIBE_STEP_MS * SAMPLE_RATE / 1000;
-    [self transcribeFromRingBuffer:stateInp.audioRingBuffer startingAtIndex:0 sampleCount:sampleCount];
+    NSUInteger sampleCount = TRANSCRIBE_WINDOW_MS * SAMPLE_RATE / 1000;
+    [self transcribeFromRingBuffer:stateInp.audioRingBuffer startingAtIndex:0 sampleCount:sampleCount timeOffset: 0];
     
     // Setup a regular call with offset
     self->stateInp.transcriptionTimer = [NSTimer scheduledTimerWithTimeInterval:TRANSCRIBE_OFFSET_MS / 1000.0
@@ -149,12 +149,15 @@
 
 - (void)regularTranscriptionCall {
     static NSUInteger startIndex = 0;
-    NSUInteger sampleCount = TRANSCRIBE_STEP_MS * SAMPLE_RATE / 1000;
+    static NSTimeInterval timeOffset = 0;
+    
+    NSUInteger sampleCount = TRANSCRIBE_WINDOW_MS * SAMPLE_RATE / 1000;
     NSUInteger stepSize = TRANSCRIBE_OFFSET_MS * SAMPLE_RATE / 1000;
     
     startIndex += stepSize;
+    timeOffset = startIndex / (float)SAMPLE_RATE / 10.0;
     
-    [self transcribeFromRingBuffer:stateInp.audioRingBuffer startingAtIndex:startIndex sampleCount:sampleCount];
+    [self transcribeFromRingBuffer:stateInp.audioRingBuffer startingAtIndex:startIndex sampleCount:sampleCount timeOffset:timeOffset];
 }
 
 - (IBAction)stopCapturing {
@@ -175,14 +178,14 @@
 //    self->stateInp.audioWave = [NSMutableString stringWithString:@""];
 }
 
-- (NSString *)getTextFromCxt:(struct whisper_context *)ctx {
+- (NSString *)getTextFromCxt:(struct whisper_context *)ctx withTimeOffset:(NSTimeInterval)timeOffset{
     NSMutableString *result = [NSMutableString string];
     
     int n_segments = whisper_full_n_segments(ctx);
     
     for (int i = 0; i < n_segments; i++) {
-        const int64_t t0 = whisper_full_get_segment_t0(ctx, i);
-        const int64_t t1 = whisper_full_get_segment_t1(ctx, i);
+        const int64_t t0 = whisper_full_get_segment_t0(ctx, i) + (timeOffset * 1000);;
+        const int64_t t1 = whisper_full_get_segment_t1(ctx, i) + (timeOffset * 1000);;
         
         const char *text_cur = whisper_full_get_segment_text(ctx, i);
         NSString *segmentText = [NSString stringWithUTF8String:text_cur];
@@ -193,7 +196,7 @@
     return result;
 }
 
-- (void)transcribeFromRingBuffer:(RingBuffer *)ringBuffer startingAtIndex:(NSUInteger)startIndex sampleCount:(NSInteger)count {
+- (void)transcribeFromRingBuffer:(RingBuffer *)ringBuffer startingAtIndex:(NSUInteger)startIndex sampleCount:(NSInteger)count timeOffset:(NSTimeInterval)timeOffset {
     if (!ringBuffer || count == 0) {
         NSLog(@"Invalid ring buffer or count");
         return;
@@ -208,6 +211,8 @@
 
     // Use peekSamples to copy the required audio data without modifying the buffer's read pointer
     [ringBuffer peekSamples:segment count:count fromIndex:startIndex];
+    
+    NSTimeInterval capturedTimeOffset = timeOffset;
 
     // Dispatch transcription work to a background queue
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
@@ -235,9 +240,7 @@
         if (whisper_full(self->stateInp.ctx, params, segment, (int)count) != 0) {
             NSLog(@"Failed to run the model");
         } else {
-            NSString *transcriptionResult = [self getTextFromCxt:self->stateInp.ctx];
-            whisper_print_timings(self->stateInp.ctx);
-            
+            NSString *transcriptionResult = [self getTextFromCxt:self->stateInp.ctx withTimeOffset:capturedTimeOffset];
             NSLog(@"Transcription result: \n%@", transcriptionResult);
             
             // Dispatch back to the main thread for any UI updates
